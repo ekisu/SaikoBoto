@@ -1,4 +1,5 @@
 import discord
+import json
 from discord.ext import commands
 import random
 
@@ -25,6 +26,7 @@ async def roleta(ctx, i:int):
     if(z == 0):
         await sai(ctx, ctx.author)
 
+f = open("config.json", "r")
+config = json.load(f)
 
-
-bot.run('BOT TOKEN HERE')
+bot.run(config['token'])
