@@ -3,11 +3,22 @@ import json
 from discord.ext import commands
 import random
 import datetime
-from pytz import all_timezones, common_timezones, timezone
+from pytz import common_timezones, timezone
 import time
+from jikanpy import Jikan
+from requests_oauthlib import OAuth2Session
+from oauthlib.oauth2 import BackendApplicationClient
 
 
 bot = commands.Bot(command_prefix='$')
+
+@bot.command()
+async def on_message(ctx): 
+    embedVar = discord.Embed(title="Title", description="Desc", color=0x00ff00)
+    embedVar.add_field(name="Field1", value="hi", inline=False)
+    embedVar.add_field(name="Field2", value="hi2", inline=False)
+    await ctx.send(embed=embedVar)
+
 #kick an member from the server.
 @bot.command()
 async def kick(ctx, member: discord.Member, *, reason=None):
@@ -59,11 +70,57 @@ async def timezones(ctx):
     for item in i_splited:
         await ctx.send(f'{item}')
 
+@bot.command()
+#
+async def rankedmapsby(ctx, user:str):
+    
+    osuid = oauth.get(f'https://osu.ppy.sh/api/v2/users/{user}') #pegando id do usuario
+    id = osuid.json()["id"] #pegou id do usuario
+    mapsearch= oauth.get(f'https://osu.ppy.sh/api/v2/beatmapsets/search/?q={id}&sort=ranked_desc') #procurando os mapas do usuario pelo id
+    beatmapsets = mapsearch.json()['beatmapsets'] #pega a resposta do site do osu e transforma em um dicionario do python
 
+    def chave(beatmap): #retorna a dificuldade do beatmap.
+        print(beatmap)
+        return beatmap['difficulty_rating']
+
+    for set in beatmapsets:
+        artista = set["artist"]
+        titulo = set["title"]
+        beatmaplink = f'https://osu.ppy.sh/beatmapsets/{set["id"]}'
+        cover = set["covers"]["card"]
+        beatmaps = sorted(set['beatmaps'], key = chave)
+        dificuldades = []
+        
+        for diff in beatmaps:
+            novadificuldade = diff["version"]        
+            ar = str(diff["ar"])
+            accuracy = str(diff['accuracy'])
+            cs = str(diff["cs"])
+            bpm = str(diff["bpm"])
+            #max_combo = str(diff["max_combo"]) max combo ficou meio ruim na exibicao
+
+            dificuldades.append(novadificuldade + ' | AR: ' + ar + ' | CS: ' + cs + ' | OD: ' + accuracy + ' | bpm: ' + bpm) #+ ' max combo: '+ max_combo)
+
+        dificuldadejuntas = '\n'.join(dificuldades)
+
+        embedVar = discord.Embed(title= titulo,url=beatmaplink, description= artista, color=0x00ff00)
+        embedVar.add_field(name="Link", value=beatmaplink, inline=False)
+        embedVar.add_field(name="Dificuldades", value=dificuldadejuntas, inline=False)
+        embedVar.set_image(url=cover)
+        await ctx.send(embed=embedVar)
 
 
 f = open("config.json", "r")
 config = json.load(f)
+
+client_id = config['osu-client-id']
+client_secret = config['osu-client-secret']
+scopes = ['public']
+client = BackendApplicationClient(client_id=client_id, scope = scopes)
+
+
+oauth = OAuth2Session(client=client, scope = scopes)
+token = oauth.fetch_token(token_url='https://osu.ppy.sh/oauth/token', client_id=client_id, client_secret=client_secret)
 
 
 bot.run(config['token'])
