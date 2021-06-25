@@ -80,7 +80,6 @@ async def rankedmapsby(ctx, user:str):
     beatmapsets = mapsearch.json()['beatmapsets'] #pega a resposta do site do osu e transforma em um dicionario do python
 
     def chave(beatmap): #retorna a dificuldade do beatmap.
-        print(beatmap)
         return beatmap['difficulty_rating']
 
     for set in beatmapsets:
