@@ -71,12 +71,10 @@ async def timezones(ctx):
         await ctx.send(f'{item}')
 
 @bot.command()
-#
 async def rankedmapsby(ctx, user:str):
-    
-    osuid = oauth.get(f'https://osu.ppy.sh/api/v2/users/{user}') #pegando id do usuario
+    osuid = oauth_osu.get(f'https://osu.ppy.sh/api/v2/users/{user}') #pegando id do usuario
     id = osuid.json()["id"] #pegou id do usuario
-    mapsearch= oauth.get(f'https://osu.ppy.sh/api/v2/beatmapsets/search/?q={id}&sort=ranked_desc') #procurando os mapas do usuario pelo id
+    mapsearch= oauth_osu.get(f'https://osu.ppy.sh/api/v2/beatmapsets/search/?q={id}&sort=ranked_desc') #procurando os mapas do usuario pelo id
     beatmapsets = mapsearch.json()['beatmapsets'] #pega a resposta do site do osu e transforma em um dicionario do python
 
     def chave(beatmap): #retorna a dificuldade do beatmap.
@@ -99,27 +97,71 @@ async def rankedmapsby(ctx, user:str):
             #max_combo = str(diff["max_combo"]) max combo ficou meio ruim na exibicao
 
             dificuldades.append(novadificuldade + ' | AR: ' + ar + ' | CS: ' + cs + ' | OD: ' + accuracy + ' | bpm: ' + bpm) #+ ' max combo: '+ max_combo)
-
         dificuldadejuntas = '\n'.join(dificuldades)
 
         embedVar = discord.Embed(title= titulo,url=beatmaplink, description= artista, color=0x00ff00)
         embedVar.add_field(name="Link", value=beatmaplink, inline=False)
         embedVar.add_field(name="Dificuldades", value=dificuldadejuntas, inline=False)
         embedVar.set_image(url=cover)
+
         await ctx.send(embed=embedVar)
 
+@bot.command()
+async def followson(ctx, user:str):
+    twitch_id = oauth_twitch.get(f'https://api.twitch.tv/helix/users?login={user}')
+    id = twitch_id.json()['data'][0]['id']
+    follows_response = oauth_twitch.get(f'https://api.twitch.tv/helix/users/follows?from_id={id}&first=100')
+    lista_de_follows = (follows_response.json()['data'])
+    lista_de_ids = []
+
+    #pega os campos to id no follow e aloca no lista_de_ids
+    for follow in lista_de_follows: 
+        lista_de_ids.append(follow['to_id']) 
+
+    #ver na lista de ids se o streamer esta
+    for follow_id in lista_de_ids:
+        verifica_on_response = oauth_twitch.get(f'https://api.twitch.tv/helix/streams?user_id={follow_id}')
+        esta_on = verifica_on_response.json()['data']
+        if not len(esta_on) == 0:
+            nome = esta_on[0]['user_login']
+            jogo = esta_on[0]['game_name']  
+            titulo = esta_on[0]['title'][:100].replace("\n"," ")
+            thumb = esta_on[0]['thumbnail_url'].format(width = 250, height = 200)
+            link = (f"https://twitch.tv/{nome}")
+            
+            embedVar = discord.Embed(title= nome,url=link , description= jogo, color=0x00ff00)
+            embedVar.add_field(name="Link", value=link, inline=False)
+            embedVar.add_field(name="Titulo", value=titulo, inline=False)
+            embedVar.set_image(url=thumb)
+
+            await ctx.send(embed=embedVar)
+            
 
 f = open("config.json", "r")
 config = json.load(f)
 
-client_id = config['osu-client-id']
-client_secret = config['osu-client-secret']
-scopes = ['public']
-client = BackendApplicationClient(client_id=client_id, scope = scopes)
+
+def criar_client_twitch():
+    client_id_twitch = config['twitch-client-id']
+    client_secret_twitch = config['twitch-client-secret']
+    #scopes_twitch = ['user:read:follows']
+    client_twitch = BackendApplicationClient(client_id=client_id_twitch)
+    oauth_twitch =  OAuth2Session(client=client_twitch)
+    oauth_twitch.headers.update({'Client-Id': client_id_twitch, 'Client-Secret': client_secret_twitch} )
+    token = oauth_twitch.fetch_token(include_client_id= True, token_url='https://id.twitch.tv/oauth2/token', client_id= client_id_twitch, client_secret= client_secret_twitch) 
+    return oauth_twitch
 
 
-oauth = OAuth2Session(client=client, scope = scopes)
-token = oauth.fetch_token(token_url='https://osu.ppy.sh/oauth/token', client_id=client_id, client_secret=client_secret)
 
+def criar_client_osu():
+    client_id = config['osu-client-id']
+    client_secret = config['osu-client-secret']
+    scopes = ['public']
+    client_osu = BackendApplicationClient(client_id=client_id, scope = scopes)
+    oauth = OAuth2Session(client=client_osu, scope = scopes)
+    token = oauth.fetch_token(token_url='https://osu.ppy.sh/oauth/token', client_id=client_id, client_secret=client_secret)
+    return oauth
 
+oauth_osu = criar_client_osu()
+oauth_twitch = criar_client_twitch()
 bot.run(config['token'])
