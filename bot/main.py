@@ -23,12 +23,12 @@ async def on_message(ctx):
 @bot.command()
 async def kick(ctx, member: discord.Member, *, reason=None):
     await member.kick(reason=reason)
-    await ctx.send(f'User {member} has kicked.')
+    await ctx.send(f'User {member.nick or member.name} has kicked.')
 
 @bot.command()    
 async def sai(ctx, member: discord.Member,*, reason=None):
     await member.edit(voice_channel=None)
-    await ctx.send(f'User {member} foi de base.')
+    await ctx.send(f'{member.nick or member.name} foi de base.')
 
 #its a russian roulet thats kicks from the channel you if get an double $roleta 100
 @bot.command()
